@@ -1,4 +1,4 @@
-package com.sanxynet.bluetoothprinter;
+package net.romzombie.momir;
 
 import org.junit.Test;
 

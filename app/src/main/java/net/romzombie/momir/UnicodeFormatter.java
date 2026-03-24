@@ -1,4 +1,4 @@
-package com.sanxynet.bluetoothprinter;
+package net.romzombie.momir;
 
 /**
  * Created by sanxy on 6/02/2020.

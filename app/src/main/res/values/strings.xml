@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BluetoothPrinter</string>
+    <string name="app_name">Momir</string>
     <string name="bluetooth_devices">Bluetooth Devices</string>
     <string name="connect">Connect</string>
     <string name="print">Print</string>

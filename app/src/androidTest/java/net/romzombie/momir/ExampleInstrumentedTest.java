@@ -1,4 +1,4 @@
-package com.sanxynet.bluetoothprinter;
+package net.romzombie.momir;
 
 import android.content.Context;
 import androidx.test.platform.app.InstrumentationRegistry;

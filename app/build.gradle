@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.sanxynet.bluetoothprinter'
+    namespace 'net.romzombie.momir'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.sanxynet.bluetoothprinter"
+        applicationId "net.romzombie.momir"
         minSdk 21
         targetSdk 35
         versionCode 1
