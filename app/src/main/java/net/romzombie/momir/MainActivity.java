@@ -37,6 +37,7 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.List;
 
 
 public class MainActivity extends Activity implements Runnable {
@@ -80,16 +81,8 @@ public class MainActivity extends Activity implements Runnable {
                 if (stat != null && "Connected".equals(stat.getText().toString())) {
                     if (mBluetoothAdapter != null && mBluetoothSocket != null) {
                         boolean disconnected = false;
-                        if (!mBluetoothAdapter.isEnabled()) {
+                        if (!mBluetoothAdapter.isEnabled() || !mBluetoothSocket.isConnected()) {
                             disconnected = true;
-                        } else {
-                            try {
-                                // Actively write a harmless NUL byte to detect a broken pipe
-                                // isConnected() does not return false if the remote device turns off unexpectedly
-                                mBluetoothSocket.getOutputStream().write(new byte[]{0});
-                            } catch (Exception e) {
-                                disconnected = true;
-                            }
                         }
 
                         if (disconnected) {
@@ -185,35 +178,53 @@ public class MainActivity extends Activity implements Runnable {
         new Thread(new Runnable() {
             @Override
             public void run() {
+                HttpURLConnection conn = null;
                 try {
-                    String urlString = "https://api.scryfall.com/cards/random?q=t%3Acreature+mv%3A" + manaValue;
-                    URL url = new URL(urlString);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("GET");
+                    // HARDCODED CPCL PAYLOAD TEST
+                    // format: ! {offset} {200 dpi} {200 dpi} {y-height} {qty}
+                    // T {font} {size} {x} {y} {data}
+                    OutputStream os = mBluetoothSocket.getOutputStream();
+                    
+                    String cpcl = "! 0 200 200 400 1\r\n" +
+                                  "T 5 0 20 20 IF YOU CAN READ THIS\r\n" +
+                                  "T 5 0 20 60 THE PRINTER SUPPORTS CPCL\r\n" +
+                                  "T 5 0 20 100 HELLO WORLD\r\n" +
+                                  "FORM\r\n" +
+                                  "PRINT\r\n";
+
+                    os.write(cpcl.getBytes("US-ASCII"));
+                    os.flush();
+                    URL url = new URL("https://api.scryfall.com/cards/random?q=type%3Acreature%20cmc%3D" + manaValue);
+                    conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestProperty("User-Agent", "InstantMomir/1.0");
                     conn.setRequestProperty("Accept", "application/json");
-                    conn.setConnectTimeout(10000);
-                    conn.setReadTimeout(10000);
+                    conn.setRequestMethod("GET");
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
 
-                    final int responseCode = conn.getResponseCode();
-                    if (responseCode == 200) {
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
                         InputStream in = new BufferedInputStream(conn.getInputStream());
                         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                        StringBuilder sb = new StringBuilder();
+                        StringBuilder response = new StringBuilder();
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            sb.append(line);
+                            response.append(line);
                         }
+                        in.close();
 
-                        JSONObject json = new JSONObject(sb.toString());
-                        final String name = json.optString("name", "Unknown");
-                        String manaCost = json.optString("mana_cost", "");
-                        String typeLine = json.optString("type_line", "");
-                        String oracleText = json.optString("oracle_text", "");
-                        String power = json.optString("power", "");
-                        String toughness = json.optString("toughness", "");
+                        JSONObject cardData = new JSONObject(response.toString());
+                        String name = cardData.getString("name");
+                        String manaCost = cardData.optString("mana_cost", "");
+                        String typeLine = cardData.optString("type_line", "");
+                        String oracleText = cardData.optString("oracle_text", "");
+                        String power = cardData.optString("power", "");
+                        String toughness = cardData.optString("toughness", "");
 
-                        final boolean success = printCard(name, manaCost, typeLine, oracleText, power, toughness);
+                        android.graphics.Bitmap cardBitmap = BitmapUtils.createCardBitmap(name, manaCost, typeLine, oracleText, power, toughness);
+                        byte[] monochromeData = BitmapUtils.convertToMonochrome(cardBitmap);
+                        final boolean success = sendPoooliPrintJob(monochromeData);
+
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -246,7 +257,6 @@ public class MainActivity extends Activity implements Runnable {
                             }
                         });
                     }
-                    conn.disconnect();
                 } catch (final Exception e) {
                     Log.e(TAG, "Fetch Error", e);
                     runOnUiThread(new Runnable() {
@@ -257,82 +267,37 @@ public class MainActivity extends Activity implements Runnable {
                             resetButtonColor(clickedButton);
                         }
                     });
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
                 }
             }
         }).start();
     }
 
-    private String sanitizeForPrinter(String input) {
-        if (input == null) return "";
-        // Replace common unicode typographic characters with ASCII equivalents
-        input = input.replace("—", "-");
-        input = input.replace("’", "'");
-        input = input.replace("‘", "'");
-        input = input.replace("“", "\"");
-        input = input.replace("”", "\"");
-        input = input.replace("•", "*");
-        input = input.replace("½", "1/2");
-        // Strip out any remaining non-ASCII characters
-        return input.replaceAll("[^\\x00-\\x7F]", "");
-    }
-
-    private boolean printCard(String name, String manaCost, String typeLine, String oracleText, String power, String toughness) {
+    private boolean sendPoooliPrintJob(byte[] monoData) {
         try {
+            int widthPx = 384;
+            int heightPx = monoData.length / (widthPx / 8);
+            Log.d(TAG, "Printing " + widthPx + "x" + heightPx + " image (" + monoData.length + " bytes)");
+            
             OutputStream os = mBluetoothSocket.getOutputStream();
-
-            // 1. Initialize Printer (ESC @) to clear buffer and reset modes
-            os.write(new byte[]{0x1B, 0x40});
-
-            String blank = "\n\n";
-            String header = "===============================\n";
-            String title = sanitizeForPrinter(name) + "  " + sanitizeForPrinter(manaCost) + "\n";
-            String type = sanitizeForPrinter(typeLine) + "\n";
-            String divider = "-------------------------------\n";
-            String oracle = sanitizeForPrinter(oracleText) + "\n";
-
-            String pt = "";
-            if (!power.isEmpty() && !toughness.isEmpty()) {
-                pt = "\n                " + sanitizeForPrinter(power) + "/" + sanitizeForPrinter(toughness) + "\n";
+            
+            // Build uncompressed raster packet (GS v 0 mode 0x00)
+            List<byte[]> packets = PoooliProtocol.buildPrintPackets(monoData, widthPx, heightPx);
+            
+            for (byte[] packet : packets) {
+                os.write(packet);
+                os.flush();
             }
-
-            String footer = "===============================\n\n\n\n\n\n";
-
-            // 2. Write out data
-            os.write(blank.getBytes());
-            os.write(header.getBytes());
-            os.write(title.getBytes());
-            os.write(divider.getBytes());
-            os.write(type.getBytes());
-            os.write(divider.getBytes());
-            os.write(oracle.getBytes());
-            os.write(pt.getBytes());
-            os.write(footer.getBytes());
-
-            // 3. Restore the printer-specific magic bytes that were in the original PrintDemo app
-            // Setting height
-            int gs = 29;
-            os.write(intToByteArray(gs));
-            int h = 150;
-            os.write(intToByteArray(h));
-            int n = 170;
-            os.write(intToByteArray(n));
-
-            // Setting Width
-            int gs_width = 29;
-            os.write(intToByteArray(gs_width));
-            int w = 119;
-            os.write(intToByteArray(w));
-            int n_width = 2;
-            os.write(intToByteArray(n_width));
-
-            os.flush();
-
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Print Error", e);
             return false;
         }
     }
+
 
     private void resetButtonColor(final Button button) {
         button.postDelayed(new Runnable() {
@@ -423,8 +388,15 @@ public class MainActivity extends Activity implements Runnable {
 
     public void run() {
         try {
+            // Use Insecure RFCOMM socket to bypass newer Android Bluetooth encryption.
+            // Many legacy generic thermal printers advertise encryption but fail to decrypt,
+            // resulting in silently dropped payloads.
             mBluetoothSocket = mBluetoothDevice
-                    .createRfcommSocketToServiceRecord(applicationUUID);
+                    .createInsecureRfcommSocketToServiceRecord(applicationUUID);
+            
+            // Fallback to reflection method if insecure connection fails
+            // mBluetoothSocket = (BluetoothSocket) mBluetoothDevice.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(mBluetoothDevice, 1);
+            
             mBluetoothAdapter.cancelDiscovery();
             mBluetoothSocket.connect();
             mHandler.sendEmptyMessage(0);
