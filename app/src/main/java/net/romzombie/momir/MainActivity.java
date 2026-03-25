@@ -81,7 +81,16 @@ public class MainActivity extends Activity implements Runnable {
                 if (stat != null && "Connected".equals(stat.getText().toString())) {
                     if (mBluetoothAdapter != null && mBluetoothSocket != null) {
                         boolean disconnected = false;
-                        if (!mBluetoothAdapter.isEnabled() || !mBluetoothSocket.isConnected()) {
+                        try {
+                            if (!mBluetoothAdapter.isEnabled() || !mBluetoothSocket.isConnected()) {
+                                disconnected = true;
+                            } else {
+                                // Active probe: InputStream.available() will throw
+                                // IOException if the remote device is unreachable
+                                mBluetoothSocket.getInputStream().available();
+                            }
+                        } catch (IOException e) {
+                            Log.w(TAG, "Polling detected disconnection", e);
                             disconnected = true;
                         }
 
@@ -103,6 +112,7 @@ public class MainActivity extends Activity implements Runnable {
         stat = findViewById(R.id.bpstatus);
 
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         layout = findViewById(R.id.layout);
         gridManaValues = findViewById(R.id.grid_mana_values);
@@ -221,7 +231,7 @@ public class MainActivity extends Activity implements Runnable {
                         String power = cardData.optString("power", "");
                         String toughness = cardData.optString("toughness", "");
 
-                        android.graphics.Bitmap cardBitmap = BitmapUtils.createCardBitmap(name, manaCost, typeLine, oracleText, power, toughness);
+                        android.graphics.Bitmap cardBitmap = BitmapUtils.createCardBitmap(MainActivity.this, name, manaCost, typeLine, oracleText, power, toughness);
                         byte[] monochromeData = BitmapUtils.convertToMonochrome(cardBitmap);
                         final boolean success = sendPoooliPrintJob(monochromeData);
 
