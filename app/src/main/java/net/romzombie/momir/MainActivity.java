@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.List;
+import java.io.IOException;
 
 
 public class MainActivity extends Activity implements Runnable {
@@ -53,6 +54,7 @@ public class MainActivity extends Activity implements Runnable {
     private ProgressDialog mBluetoothConnectProgressDialog;
     private BluetoothSocket mBluetoothSocket;
     BluetoothDevice mBluetoothDevice;
+    private PrinterStrategy mPrinterStrategy;
     private boolean isAutoReconnecting = false;
 
     private Handler pollingHandler = new Handler();
@@ -233,7 +235,7 @@ public class MainActivity extends Activity implements Runnable {
 
                         android.graphics.Bitmap cardBitmap = BitmapUtils.createCardBitmap(MainActivity.this, name, manaCost, typeLine, oracleText, power, toughness);
                         byte[] monochromeData = BitmapUtils.convertToMonochrome(cardBitmap);
-                        final boolean success = sendPoooliPrintJob(monochromeData);
+                        final boolean success = sendPrintJob(monochromeData, cardBitmap.getWidth(), cardBitmap.getHeight());
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -286,17 +288,17 @@ public class MainActivity extends Activity implements Runnable {
         }).start();
     }
 
-    private boolean sendPoooliPrintJob(byte[] monoData) {
+    private boolean sendPrintJob(byte[] monoData, int widthPx, int heightPx) {
         try {
-            int widthPx = 384;
-            int heightPx = monoData.length / (widthPx / 8);
-            Log.d(TAG, "Printing " + widthPx + "x" + heightPx + " image (" + monoData.length + " bytes)");
-            
+            if (mPrinterStrategy == null) {
+                Log.e(TAG, "No printer strategy set");
+                return false;
+            }
+            Log.d(TAG, "Printing " + widthPx + "x" + heightPx + " image (" + monoData.length + " bytes) via " + mPrinterStrategy.getName());
+
             OutputStream os = mBluetoothSocket.getOutputStream();
-            
-            // Build uncompressed raster packet (GS v 0 mode 0x00)
-            List<byte[]> packets = PoooliProtocol.buildPrintPackets(monoData, widthPx, heightPx);
-            
+            List<byte[]> packets = mPrinterStrategy.buildPrintData(monoData, widthPx, heightPx);
+
             for (byte[] packet : packets) {
                 os.write(packet);
                 os.flush();
@@ -444,6 +446,10 @@ public class MainActivity extends Activity implements Runnable {
                     SharedPreferences prefs = getSharedPreferences("MomirPrefs", MODE_PRIVATE);
                     prefs.edit().putString("LastPrinterMac", mBluetoothDevice.getAddress()).apply();
                 }
+                // Select printer communication strategy based on device name
+                String deviceName = (mBluetoothDevice != null) ? mBluetoothDevice.getName() : null;
+                mPrinterStrategy = PrinterStrategyFactory.fromDeviceName(deviceName);
+                Toast.makeText(MainActivity.this, "Strategy: " + mPrinterStrategy.getName(), Toast.LENGTH_SHORT).show();
                 isAutoReconnecting = false;
             } else if (msg.what == 1) {
                 if (isAutoReconnecting) {

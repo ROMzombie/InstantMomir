@@ -5,7 +5,8 @@ A simple Android application for playing the Momir format in Magic: the Gatherin
 ## Features
 
 - Scan for and connect to paired Bluetooth thermal printers
-- Works currently on the cheap [PRT](https://www.amazon.com/dp/B0DYN9XLTQ)
+- Works currently with standard themral printers
+- - Includes support for the cheap [PRT](https://www.amazon.com/dp/B0DYN9XLTQ)
 - Quick access to random creature cards by mana cost
 
 ## Screenshots
