@@ -11,6 +11,9 @@ A simple Android application for playing the Momir format in Magic: the Gatherin
 
 ## Screenshots
 
+| App Interface | Printed Output |
+|:---:|:---:|
+| ![App Interface](docs/screenshots/screenshot-01.png) | ![Printed Card Output](docs/screenshots/output-01.jpg) |
 
 ## Sideloading InstantMomir
 
