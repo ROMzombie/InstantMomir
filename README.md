@@ -12,6 +12,35 @@ A simple Android application for playing the Momir format in Magic: the Gatherin
 ## Screenshots
 
 
+## Sideloading InstantMomir
+
+You can install the app directly from the [latest release](https://github.com/ROMzombie/InstantMomir/releases/latest) without needing Android Studio or any development tools.
+
+### Download the APK
+
+1. On your Android device, open **Chrome** (or any browser) and go to the [Releases page](https://github.com/ROMzombie/InstantMomir/releases/latest).
+2. Under **Assets**, tap the file named `InstantMomir-v*.apk` to download it.
+
+### Enable "Install Unknown Apps"
+
+Android blocks APK installs from outside the Play Store by default. You need to allow this once for the app you use to open the APK (usually your browser or file manager).
+
+1. Go to **Settings → Apps → Special app access → Install unknown apps**.
+2. Select the app you will use to open the APK (e.g. **Chrome** or **Files**).
+3. Toggle **Allow from this source** to **ON**.
+
+> **Note — Android 15+ (2026):** Newer devices may show additional security prompts as part of Android's Advanced Flow verification. Follow the on-screen instructions; you may need to enable Developer Options or confirm an extra authentication step before the install proceeds.
+
+### Install the APK
+
+1. Open your **Downloads** folder (or tap the download notification).
+2. Tap the APK file and press **Install** when prompted.
+3. Once installed, open **Momir** from your app drawer.
+
+> **Security tip:** After installing, go back to **Settings → Apps → Special app access → Install unknown apps** and toggle the permission back to **OFF** for the app you enabled it on.
+
+---
+
 ## Development Setup
 
 ### Requirements
