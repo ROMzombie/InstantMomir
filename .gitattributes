@@ -1,0 +1,14 @@
+# Auto-generated .gitattributes
+# Image files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+
+# Other binary files
+*.jks binary
+*.aar binary
+*.jar binary
+*.keystore binary
