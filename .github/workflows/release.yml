@@ -33,8 +33,18 @@ jobs:
           git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
           git push origin "v${{ inputs.version }}"
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease -PversionNameOverride=${{ inputs.version }}
+      - name: Build release APK and AAB
+        run: ./gradlew assembleRelease bundleRelease -PversionNameOverride=${{ inputs.version }}
+
+      - name: Sign App Bundle
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/bundle/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
       - name: Rename APK
         run: |
@@ -48,4 +58,14 @@ jobs:
           gh release create "v${{ inputs.version }}" \
             --title "v${{ inputs.version }}" \
             --generate-notes \
-            app/build/outputs/apk/release/InstantMomir-v${{ inputs.version }}.apk
+            app/build/outputs/apk/release/InstantMomir-v${{ inputs.version }}.apk \
+            ${{ steps.sign_app.outputs.signedReleaseFile }}
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_CONFIG_JSON }}
+          packageName: net.romzombie.momir
+          releaseFiles: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          track: internal
+          status: completed
