@@ -10,7 +10,7 @@ android {
         applicationId "net.romzombie.momir"
         minSdk 21
         targetSdk 35
-        versionCode 1
+        versionCode project.hasProperty('versionCodeOverride') ? project.versionCodeOverride.toInteger() : 1
         versionName project.hasProperty('versionNameOverride') ? project.versionNameOverride : "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

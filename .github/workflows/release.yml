@@ -34,7 +34,7 @@ jobs:
           git push origin "v${{ inputs.version }}"
 
       - name: Build release APK and AAB
-        run: ./gradlew assembleRelease bundleRelease -PversionNameOverride=${{ inputs.version }}
+        run: ./gradlew assembleRelease bundleRelease -PversionNameOverride=${{ inputs.version }} -PversionCodeOverride=${{ github.run_number }}
 
       - name: Sign App Bundle
         uses: r0adkll/sign-android-release@v1
