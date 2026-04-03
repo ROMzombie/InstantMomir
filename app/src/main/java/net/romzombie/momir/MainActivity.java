@@ -17,9 +17,12 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.view.MenuItem;
 
 import org.json.JSONObject;
 
@@ -113,6 +116,27 @@ public class MainActivity extends Activity implements Runnable {
 
         stat = findViewById(R.id.bpstatus);
 
+        ImageView ivMenu = findViewById(R.id.iv_menu);
+        if (ivMenu != null) {
+            ivMenu.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    PopupMenu popup = new PopupMenu(MainActivity.this, v);
+                    popup.getMenu().add("Settings");
+                    popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                        public boolean onMenuItemClick(MenuItem item) {
+                            if ("Settings".equals(item.getTitle())) {
+                                startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                                return true;
+                            }
+                            return false;
+                        }
+                    });
+                    popup.show();
+                }
+            });
+        }
+
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -192,20 +216,8 @@ public class MainActivity extends Activity implements Runnable {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
-                    // HARDCODED CPCL PAYLOAD TEST
-                    // format: ! {offset} {200 dpi} {200 dpi} {y-height} {qty}
-                    // T {font} {size} {x} {y} {data}
                     OutputStream os = mBluetoothSocket.getOutputStream();
-                    
-                    String cpcl = "! 0 200 200 400 1\r\n" +
-                                  "T 5 0 20 20 IF YOU CAN READ THIS\r\n" +
-                                  "T 5 0 20 60 THE PRINTER SUPPORTS CPCL\r\n" +
-                                  "T 5 0 20 100 HELLO WORLD\r\n" +
-                                  "FORM\r\n" +
-                                  "PRINT\r\n";
 
-                    os.write(cpcl.getBytes("US-ASCII"));
-                    os.flush();
                     URL url = new URL("https://api.scryfall.com/cards/random?q=type%3Acreature%20cmc%3D" + manaValue);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestProperty("User-Agent", "InstantMomir/1.0");
@@ -226,16 +238,19 @@ public class MainActivity extends Activity implements Runnable {
                         in.close();
 
                         JSONObject cardData = new JSONObject(response.toString());
-                        String name = cardData.getString("name");
-                        String manaCost = cardData.optString("mana_cost", "");
-                        String typeLine = cardData.optString("type_line", "");
-                        String oracleText = cardData.optString("oracle_text", "");
-                        String power = cardData.optString("power", "");
-                        String toughness = cardData.optString("toughness", "");
+                        final String name = cardData.getString("name");
 
-                        android.graphics.Bitmap cardBitmap = BitmapUtils.createCardBitmap(MainActivity.this, name, manaCost, typeLine, oracleText, power, toughness);
-                        byte[] monochromeData = BitmapUtils.convertToMonochrome(cardBitmap);
-                        final boolean success = sendPrintJob(monochromeData, cardBitmap.getWidth(), cardBitmap.getHeight());
+                        SharedPreferences prefs = getSharedPreferences("MomirPrefs", MODE_PRIVATE);
+                        String strategyName = prefs.getString("OutputFormatStrategy", "TextFormat");
+                        OutputFormatStrategy formatStrategy;
+                        if ("ImageFormat".equals(strategyName)) {
+                            formatStrategy = new ImageFormatStrategy();
+                        } else {
+                            formatStrategy = new TextFormatStrategy();
+                        }
+
+                        byte[] monochromeData = formatStrategy.format(MainActivity.this, cardData);
+                        final boolean success = sendPrintJob(monochromeData, formatStrategy.getWidth(), formatStrategy.getHeight());
 
                         runOnUiThread(new Runnable() {
                             @Override
