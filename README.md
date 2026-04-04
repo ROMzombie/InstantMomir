@@ -15,6 +15,11 @@ A simple Android application for playing the Momir format in Magic: the Gatherin
 |:---:|:---:|
 | ![App Interface](screenshots/phone_main.png) | ![Printed Card Output](screenshots/output-01.jpg) |
 
+## Installing from Google Play
+
+Currently in limited testing, you can access the tester group here:
+[Google Play Store](https://play.google.com/store/apps/details?id=net.romzombie.momir) or [Google Play Beta](https://play.google.com/apps/testing/net.romzombie.momir)
+
 ## Sideloading InstantMomir
 
 You can install the app directly from the [latest release](https://github.com/ROMzombie/InstantMomir/releases/latest) without needing Android Studio or any development tools.
