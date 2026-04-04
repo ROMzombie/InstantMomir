@@ -13,7 +13,7 @@ A simple Android application for playing the Momir format in Magic: the Gatherin
 
 | App Interface | Printed Output |
 |:---:|:---:|
-| ![App Interface](docs/screenshots/screenshot-01.png) | ![Printed Card Output](docs/screenshots/output-01.jpg) |
+| ![App Interface](screenshots/phone_main.png) | ![Printed Card Output](screenshots/output-01.jpg) |
 
 ## Sideloading InstantMomir
 
@@ -76,12 +76,31 @@ cd InstantMomir
 # Windows — debug build
 .\gradlew assembleDebug
 
-# Run unit tests
-.\gradlew test
+# Run unit tests (JUnit and Robolectric)
+.\gradlew testDebugUnitTest
 
 # Run lint
 .\gradlew lint
 ```
+
+## Testing
+
+Instant Momir uses **JUnit 4**, **Robolectric**, and **Mockito** for its testing framework to ensure code quality and stability.
+
+### Running Tests Locally
+
+To run all unit and integration tests locally, execute:
+```powershell
+.\gradlew testDebugUnitTest
+```
+This command will execute all Robolectric simulated Android tests (such as UI interaction states) and standard Java unit tests (such as JSON parsing logic). 
+
+### Continuous Integration (CI) and Branch Protection
+
+The repository is configured with a GitHub Actions workflow (`.github/workflows/pr-check.yml`) that automatically runs `./gradlew testDebugUnitTest` and `./gradlew lint` on all pull requests targeting the `master` branch.
+
+**To ensure all tests pass before merging:**
+The `master` branch has branch protection rules enabled on GitHub. The `Run Unit Tests` block acts as a mandatory status check, ensuring that no breaking changes are merged into production.
 
 ---
 
