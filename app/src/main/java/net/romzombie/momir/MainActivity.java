@@ -1,7 +1,9 @@
 package net.romzombie.momir;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -43,8 +45,7 @@ import java.util.UUID;
 import java.util.List;
 import java.io.IOException;
 
-
-public class MainActivity extends Activity implements Runnable {
+public class MainActivity extends AppCompatActivity implements Runnable {
 
     protected static final String TAG = "MainActivity";
     private static final int REQUEST_CONNECT_DEVICE = 1;
@@ -77,6 +78,16 @@ public class MainActivity extends Activity implements Runnable {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SharedPreferences prefs = getSharedPreferences("MomirPrefs", MODE_PRIVATE);
+        String savedTheme = prefs.getString("ThemeMode", "system");
+        if ("light".equals(savedTheme)) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        } else if ("dark".equals(savedTheme)) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -195,8 +206,10 @@ public class MainActivity extends Activity implements Runnable {
                     if (mBluetoothAdapter != null)
                         mBluetoothAdapter.disable();
                     try {
-                        if (mBluetoothSocket != null) mBluetoothSocket.close();
-                    } catch (Exception e) {}
+                        if (mBluetoothSocket != null)
+                            mBluetoothSocket.close();
+                    } catch (Exception e) {
+                    }
                     updateUIForDisconnect();
                 }
             }
@@ -213,7 +226,9 @@ public class MainActivity extends Activity implements Runnable {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
-                    URL url = new URL("https://api.scryfall.com/cards/random?q=type%3Acreature%20cmc%3D" + manaValue);
+                    URL url = new URL(
+                            "https://api.scryfall.com/cards/random?q=type%3Acreature%20game%3Apaper%20legal%3Dvintage%20cmc%3D"
+                                    + manaValue);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestProperty("User-Agent", "InstantMomir/1.0");
                     conn.setRequestProperty("Accept", "application/json");
@@ -246,17 +261,20 @@ public class MainActivity extends Activity implements Runnable {
                             }
 
                             byte[] monochromeData = formatStrategy.format(MainActivity.this, cardData);
-                            final boolean success = sendPrintJob(monochromeData, formatStrategy.getWidth(), formatStrategy.getHeight());
+                            final boolean success = sendPrintJob(monochromeData, formatStrategy.getWidth(),
+                                    formatStrategy.getHeight());
 
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
                                     if (success) {
                                         clickedButton.setBackgroundColor(Color.GREEN);
-                                        Toast.makeText(MainActivity.this, "Successfully printed " + name, Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(MainActivity.this, "Successfully printed " + name,
+                                                Toast.LENGTH_SHORT).show();
                                     } else {
                                         clickedButton.setBackgroundColor(Color.RED);
-                                        Toast.makeText(MainActivity.this, "Failed to send data to printer", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(MainActivity.this, "Failed to send data to printer",
+                                                Toast.LENGTH_SHORT).show();
                                     }
                                     resetButtonColor(clickedButton);
                                 }
@@ -271,7 +289,7 @@ public class MainActivity extends Activity implements Runnable {
                                     imageUrl = imageUris.getString("large");
                                 }
                             }
-                            
+
                             if (imageUrl == null && cardData.has("card_faces")) {
                                 JSONObject face = cardData.getJSONArray("card_faces").getJSONObject(0);
                                 if (face.has("image_uris")) {
@@ -291,17 +309,20 @@ public class MainActivity extends Activity implements Runnable {
                                 imgConn.setRequestProperty("Accept", "image/jpeg, image/png");
                                 imgConn.setConnectTimeout(5000);
                                 imgConn.setReadTimeout(10000);
-                                
+
                                 InputStream imgIn = imgConn.getInputStream();
-                                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(imgIn);
+                                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory
+                                        .decodeStream(imgIn);
                                 imgConn.disconnect();
 
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
                                         clickedButton.setBackgroundColor(Color.GREEN);
-                                        android.app.Dialog dialog = new android.app.Dialog(MainActivity.this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-                                        android.widget.ImageView imageView = new android.widget.ImageView(MainActivity.this);
+                                        android.app.Dialog dialog = new android.app.Dialog(MainActivity.this,
+                                                android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                                        android.widget.ImageView imageView = new android.widget.ImageView(
+                                                MainActivity.this);
                                         imageView.setImageBitmap(bitmap);
                                         imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                                         imageView.setOnClickListener(new android.view.View.OnClickListener() {
@@ -324,7 +345,8 @@ public class MainActivity extends Activity implements Runnable {
                             @Override
                             public void run() {
                                 clickedButton.setBackgroundColor(Color.RED);
-                                Toast.makeText(MainActivity.this, "No creature found with MV " + manaValue, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, "No creature found with MV " + manaValue,
+                                        Toast.LENGTH_SHORT).show();
                                 resetButtonColor(clickedButton);
                             }
                         });
@@ -333,7 +355,9 @@ public class MainActivity extends Activity implements Runnable {
                             @Override
                             public void run() {
                                 clickedButton.setBackgroundColor(Color.RED);
-                                Toast.makeText(MainActivity.this, "Failed to fetch card metadata (HTTP " + responseCode + ")", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this,
+                                        "Failed to fetch card metadata (HTTP " + responseCode + ")", Toast.LENGTH_SHORT)
+                                        .show();
                                 resetButtonColor(clickedButton);
                             }
                         });
@@ -363,7 +387,8 @@ public class MainActivity extends Activity implements Runnable {
                 Log.e(TAG, "No printer strategy set");
                 return false;
             }
-            Log.d(TAG, "Printing " + widthPx + "x" + heightPx + " image (" + monoData.length + " bytes) via " + mPrinterStrategy.getName());
+            Log.d(TAG, "Printing " + widthPx + "x" + heightPx + " image (" + monoData.length + " bytes) via "
+                    + mPrinterStrategy.getName());
 
             OutputStream os = mBluetoothSocket.getOutputStream();
             List<byte[]> packets = mPrinterStrategy.buildPrintData(monoData, widthPx, heightPx);
@@ -378,7 +403,6 @@ public class MainActivity extends Activity implements Runnable {
             return false;
         }
     }
-
 
     private void resetButtonColor(final Button button) {
         button.postDelayed(new Runnable() {
@@ -405,7 +429,7 @@ public class MainActivity extends Activity implements Runnable {
     }
 
     public void onActivityResult(int mRequestCode, int mResultCode,
-                                 Intent mDataIntent) {
+            Intent mDataIntent) {
         super.onActivityResult(mRequestCode, mResultCode, mDataIntent);
 
         switch (mRequestCode) {
@@ -418,7 +442,8 @@ public class MainActivity extends Activity implements Runnable {
                             .getRemoteDevice(mDeviceAddress);
                     mBluetoothConnectProgressDialog = ProgressDialog.show(this,
                             "Connecting...", mBluetoothDevice.getName() + " : "
-                                    + mBluetoothDevice.getAddress(), true, false);
+                                    + mBluetoothDevice.getAddress(),
+                            true, false);
                     Thread mBlutoothConnectThread = new Thread(this);
                     mBlutoothConnectThread.start();
                 }
@@ -458,8 +483,10 @@ public class MainActivity extends Activity implements Runnable {
             isAutoReconnecting = true;
             mBluetoothDevice = mBluetoothAdapter.getRemoteDevice(savedMac);
             mBluetoothConnectProgressDialog = ProgressDialog.show(MainActivity.this,
-                    "Connecting...", (mBluetoothDevice.getName() != null ? mBluetoothDevice.getName() : "Device") + " : "
-                            + mBluetoothDevice.getAddress(), true, false);
+                    "Connecting...",
+                    (mBluetoothDevice.getName() != null ? mBluetoothDevice.getName() : "Device") + " : "
+                            + mBluetoothDevice.getAddress(),
+                    true, false);
             Thread mBlutoothConnectThread = new Thread(MainActivity.this);
             mBlutoothConnectThread.start();
         } else {
@@ -470,14 +497,17 @@ public class MainActivity extends Activity implements Runnable {
     public void run() {
         try {
             // Use Insecure RFCOMM socket to bypass newer Android Bluetooth encryption.
-            // Many legacy generic thermal printers advertise encryption but fail to decrypt,
+            // Many legacy generic thermal printers advertise encryption but fail to
+            // decrypt,
             // resulting in silently dropped payloads.
             mBluetoothSocket = mBluetoothDevice
                     .createInsecureRfcommSocketToServiceRecord(applicationUUID);
-            
+
             // Fallback to reflection method if insecure connection fails
-            // mBluetoothSocket = (BluetoothSocket) mBluetoothDevice.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(mBluetoothDevice, 1);
-            
+            // mBluetoothSocket = (BluetoothSocket)
+            // mBluetoothDevice.getClass().getMethod("createRfcommSocket", new Class[]
+            // {int.class}).invoke(mBluetoothDevice, 1);
+
             mBluetoothAdapter.cancelDiscovery();
             mBluetoothSocket.connect();
             mHandler.sendEmptyMessage(0);
@@ -523,7 +553,8 @@ public class MainActivity extends Activity implements Runnable {
             } else if (msg.what == 1) {
                 if (isAutoReconnecting) {
                     isAutoReconnecting = false;
-                    Toast.makeText(MainActivity.this, "Auto-reconnect failed, moving to device list", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Auto-reconnect failed, moving to device list",
+                            Toast.LENGTH_SHORT).show();
                     showDeviceList();
                 } else {
                     Toast.makeText(MainActivity.this, "Connection failed", Toast.LENGTH_SHORT).show();
@@ -536,9 +567,12 @@ public class MainActivity extends Activity implements Runnable {
 
     private boolean checkBluetoothPermissions() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{
+            if (checkSelfPermission(
+                    android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ||
+                    checkSelfPermission(
+                            android.Manifest.permission.BLUETOOTH_SCAN) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[] {
                         android.Manifest.permission.BLUETOOTH_CONNECT,
                         android.Manifest.permission.BLUETOOTH_SCAN
                 }, REQUEST_PERMISSIONS_BT);
@@ -553,7 +587,8 @@ public class MainActivity extends Activity implements Runnable {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_PERMISSIONS_BT) {
             boolean allGranted = true;
-            if (grantResults.length == 0) return;
+            if (grantResults.length == 0)
+                return;
             for (int result : grantResults) {
                 if (result != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                     allGranted = false;

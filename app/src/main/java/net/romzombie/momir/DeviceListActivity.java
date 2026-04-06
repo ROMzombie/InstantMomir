@@ -5,6 +5,7 @@ package net.romzombie.momir;
  */
 
 import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
@@ -22,15 +23,15 @@ import android.widget.TextView;
 import java.util.Set;
 
 
-public class DeviceListActivity extends Activity {
+public class DeviceListActivity extends AppCompatActivity {
     protected static final String TAG = "DeviceListActivity";
     private BluetoothAdapter mBluetoothAdapter;
     private ArrayAdapter<String> mPairedDevicesArrayAdapter;
 
     @Override
     protected void onCreate(Bundle mSavedInstanceState) {
+        supportRequestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         super.onCreate(mSavedInstanceState);
-        requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.activity_device_list);
 
         setResult(Activity.RESULT_CANCELED);
