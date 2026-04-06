@@ -204,10 +204,7 @@ public class MainActivity extends Activity implements Runnable {
     }
 
     private void fetchAndPrintCard(final int manaValue, final Button clickedButton) {
-        if (mBluetoothSocket == null || !mBluetoothSocket.isConnected()) {
-            Toast.makeText(this, "Please connect to a printer first", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        final boolean isConnected = mBluetoothSocket != null && mBluetoothSocket.isConnected();
 
         clickedButton.setBackgroundColor(Color.YELLOW);
 
@@ -216,8 +213,6 @@ public class MainActivity extends Activity implements Runnable {
             public void run() {
                 HttpURLConnection conn = null;
                 try {
-                    OutputStream os = mBluetoothSocket.getOutputStream();
-
                     URL url = new URL("https://api.scryfall.com/cards/random?q=type%3Acreature%20cmc%3D" + manaValue);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestProperty("User-Agent", "InstantMomir/1.0");
@@ -240,31 +235,90 @@ public class MainActivity extends Activity implements Runnable {
                         JSONObject cardData = new JSONObject(response.toString());
                         final String name = cardData.getString("name");
 
-                        SharedPreferences prefs = getSharedPreferences("MomirPrefs", MODE_PRIVATE);
-                        String strategyName = prefs.getString("OutputFormatStrategy", "TextFormat");
-                        OutputFormatStrategy formatStrategy;
-                        if ("ImageFormat".equals(strategyName)) {
-                            formatStrategy = new ImageFormatStrategy();
-                        } else {
-                            formatStrategy = new TextFormatStrategy();
-                        }
-
-                        byte[] monochromeData = formatStrategy.format(MainActivity.this, cardData);
-                        final boolean success = sendPrintJob(monochromeData, formatStrategy.getWidth(), formatStrategy.getHeight());
-
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (success) {
-                                    clickedButton.setBackgroundColor(Color.GREEN);
-                                    Toast.makeText(MainActivity.this, "Successfully printed " + name, Toast.LENGTH_SHORT).show();
-                                } else {
-                                    clickedButton.setBackgroundColor(Color.RED);
-                                    Toast.makeText(MainActivity.this, "Failed to send data to printer", Toast.LENGTH_SHORT).show();
-                                }
-                                resetButtonColor(clickedButton);
+                        if (isConnected) {
+                            SharedPreferences prefs = getSharedPreferences("MomirPrefs", MODE_PRIVATE);
+                            String strategyName = prefs.getString("OutputFormatStrategy", "TextFormat");
+                            OutputFormatStrategy formatStrategy;
+                            if ("ImageFormat".equals(strategyName)) {
+                                formatStrategy = new ImageFormatStrategy();
+                            } else {
+                                formatStrategy = new TextFormatStrategy();
                             }
-                        });
+
+                            byte[] monochromeData = formatStrategy.format(MainActivity.this, cardData);
+                            final boolean success = sendPrintJob(monochromeData, formatStrategy.getWidth(), formatStrategy.getHeight());
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (success) {
+                                        clickedButton.setBackgroundColor(Color.GREEN);
+                                        Toast.makeText(MainActivity.this, "Successfully printed " + name, Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        clickedButton.setBackgroundColor(Color.RED);
+                                        Toast.makeText(MainActivity.this, "Failed to send data to printer", Toast.LENGTH_SHORT).show();
+                                    }
+                                    resetButtonColor(clickedButton);
+                                }
+                            });
+                        } else {
+                            String imageUrl = null;
+                            if (cardData.has("image_uris")) {
+                                JSONObject imageUris = cardData.getJSONObject("image_uris");
+                                if (imageUris.has("normal")) {
+                                    imageUrl = imageUris.getString("normal");
+                                } else if (imageUris.has("large")) {
+                                    imageUrl = imageUris.getString("large");
+                                }
+                            }
+                            
+                            if (imageUrl == null && cardData.has("card_faces")) {
+                                JSONObject face = cardData.getJSONArray("card_faces").getJSONObject(0);
+                                if (face.has("image_uris")) {
+                                    JSONObject imageUris = face.getJSONObject("image_uris");
+                                    if (imageUris.has("normal")) {
+                                        imageUrl = imageUris.getString("normal");
+                                    } else if (imageUris.has("large")) {
+                                        imageUrl = imageUris.getString("large");
+                                    }
+                                }
+                            }
+
+                            if (imageUrl != null) {
+                                URL imgUrl = new URL(imageUrl);
+                                HttpURLConnection imgConn = (HttpURLConnection) imgUrl.openConnection();
+                                imgConn.setRequestProperty("User-Agent", "InstantMomir/1.0");
+                                imgConn.setRequestProperty("Accept", "image/jpeg, image/png");
+                                imgConn.setConnectTimeout(5000);
+                                imgConn.setReadTimeout(10000);
+                                
+                                InputStream imgIn = imgConn.getInputStream();
+                                final android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(imgIn);
+                                imgConn.disconnect();
+
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        clickedButton.setBackgroundColor(Color.GREEN);
+                                        android.app.Dialog dialog = new android.app.Dialog(MainActivity.this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                                        android.widget.ImageView imageView = new android.widget.ImageView(MainActivity.this);
+                                        imageView.setImageBitmap(bitmap);
+                                        imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                                        imageView.setOnClickListener(new android.view.View.OnClickListener() {
+                                            @Override
+                                            public void onClick(android.view.View v) {
+                                                dialog.dismiss();
+                                            }
+                                        });
+                                        dialog.setContentView(imageView);
+                                        dialog.show();
+                                        resetButtonColor(clickedButton);
+                                    }
+                                });
+                            } else {
+                                throw new Exception("No suitable image found for card.");
+                            }
+                        }
                     } else if (responseCode == 404) {
                         runOnUiThread(new Runnable() {
                             @Override
