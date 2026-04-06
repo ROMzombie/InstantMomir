@@ -5,7 +5,9 @@
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
+.vscode
 .DS_Store
 /build
 /captures
 .externalNativeBuild
+*.log
